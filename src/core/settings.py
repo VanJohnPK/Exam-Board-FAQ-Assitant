@@ -156,7 +156,7 @@ class Settings(BaseSettings):
                     self.AVAILABLE_MODELS.update(set(FakeModelName))
                 case Provider.AZURE_OPENAI:
                     if self.DEFAULT_MODEL is None:
-                        self.DEFAULT_MODEL = AzureOpenAIModelName.AZURE_GPT_4O_MINI
+                        self.DEFAULT_MODEL = AzureOpenAIModelName.AZURE_GPT_4O
                     self.AVAILABLE_MODELS.update(set(AzureOpenAIModelName))
                     # Validate Azure OpenAI settings if Azure provider is available
                     if not self.AZURE_OPENAI_API_KEY:

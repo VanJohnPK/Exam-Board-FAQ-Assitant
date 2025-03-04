@@ -97,7 +97,7 @@ def test_settings_with_azure_openai_key():
     ):
         settings = Settings(_env_file=None)
         assert settings.AZURE_OPENAI_API_KEY.get_secret_value() == "test_key"
-        assert settings.DEFAULT_MODEL == AzureOpenAIModelName.AZURE_GPT_4O_MINI
+        assert settings.DEFAULT_MODEL == AzureOpenAIModelName.AZURE_GPT_4O
         assert settings.AVAILABLE_MODELS == set(AzureOpenAIModelName)
 
 
