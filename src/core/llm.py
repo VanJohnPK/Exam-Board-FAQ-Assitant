@@ -26,9 +26,6 @@ from schema.models import (
 _MODEL_TABLE = {
     OpenAIModelName.GPT_4O_MINI: "gpt-4o-mini",
     OpenAIModelName.GPT_4O: "gpt-4o",
-    AzureOpenAIModelName.AZURE_GPT_4O_MINI: settings.AZURE_OPENAI_DEPLOYMENT_MAP.get(
-        "gpt-4o-mini", ""
-    ),
     AzureOpenAIModelName.AZURE_GPT_4O: settings.AZURE_OPENAI_DEPLOYMENT_MAP.get("gpt-4o", ""),
     DeepseekModelName.DEEPSEEK_CHAT: "deepseek-chat",
     AnthropicModelName.HAIKU_3: "claude-3-haiku-20240307",
