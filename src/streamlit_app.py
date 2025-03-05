@@ -177,10 +177,10 @@ async def main() -> None:
             st.error(f"Error generating response: {e}")
             st.stop()
 
-    # If messages have been generated, show feedback widget
-    if len(messages) > 0 and st.session_state.last_message:
-        with st.session_state.last_message:
-            await handle_feedback()
+    # # If messages have been generated, show feedback widget
+    # if len(messages) > 0 and st.session_state.last_message:
+    #     with st.session_state.last_message:
+    #         await handle_feedback()
 
 
 async def draw_messages(
@@ -325,34 +325,34 @@ async def draw_messages(
                 st.stop()
 
 
-async def handle_feedback() -> None:
-    """Draws a feedback widget and records feedback from the user."""
+# async def handle_feedback() -> None:
+#     """Draws a feedback widget and records feedback from the user."""
 
-    # Keep track of last feedback sent to avoid sending duplicates
-    if "last_feedback" not in st.session_state:
-        st.session_state.last_feedback = (None, None)
+#     # Keep track of last feedback sent to avoid sending duplicates
+#     if "last_feedback" not in st.session_state:
+#         st.session_state.last_feedback = (None, None)
 
-    latest_run_id = st.session_state.messages[-1].run_id
-    feedback = st.feedback("stars", key=latest_run_id)
+#     latest_run_id = st.session_state.messages[-1].run_id
+#     feedback = st.feedback("stars", key=latest_run_id)
 
-    # If the feedback value or run ID has changed, send a new feedback record
-    if feedback is not None and (latest_run_id, feedback) != st.session_state.last_feedback:
-        # Normalize the feedback value (an index) to a score between 0 and 1
-        normalized_score = (feedback + 1) / 5.0
+#     # If the feedback value or run ID has changed, send a new feedback record
+#     if feedback is not None and (latest_run_id, feedback) != st.session_state.last_feedback:
+#         # Normalize the feedback value (an index) to a score between 0 and 1
+#         normalized_score = (feedback + 1) / 5.0
 
-        agent_client: AgentClient = st.session_state.agent_client
-        try:
-            await agent_client.acreate_feedback(
-                run_id=latest_run_id,
-                key="human-feedback-stars",
-                score=normalized_score,
-                kwargs={"comment": "In-line human feedback"},
-            )
-        except AgentClientError as e:
-            st.error(f"Error recording feedback: {e}")
-            st.stop()
-        st.session_state.last_feedback = (latest_run_id, feedback)
-        st.toast("Feedback recorded", icon=":material/reviews:")
+#         agent_client: AgentClient = st.session_state.agent_client
+#         try:
+#             await agent_client.acreate_feedback(
+#                 run_id=latest_run_id,
+#                 key="human-feedback-stars",
+#                 score=normalized_score,
+#                 kwargs={"comment": "In-line human feedback"},
+#             )
+#         except AgentClientError as e:
+#             st.error(f"Error recording feedback: {e}")
+#             st.stop()
+#         st.session_state.last_feedback = (latest_run_id, feedback)
+#         st.toast("Feedback recorded", icon=":material/reviews:")
 
 
 if __name__ == "__main__":
