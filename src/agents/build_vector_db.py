@@ -35,7 +35,7 @@ for pair in qa_pairs:
 # )
 # doc_splits = text_splitter.split_documents(docs)
 doc_splits = docs  # 不进行额外分割，直接使用完整问答对
-# 初始化向量数据库
+# 初始化向量数据库 # 白嫖的key，不怕泄露
 embeddings = OpenAIEmbeddings(api_key="a89a3ffd346549eeb6a2914d8bcba924.vGehkWyAxdym9sHz", base_url="https://open.bigmodel.cn/api/paas/v4", model="embedding-3")
 # 指定存储路径
 persist_directory = "./my_vector_db"
