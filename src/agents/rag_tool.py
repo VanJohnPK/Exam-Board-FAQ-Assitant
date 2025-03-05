@@ -1,9 +1,11 @@
 from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+# from langchain_openai import OpenAIEmbeddings 
+from langchain_community.embeddings import DashScopeEmbeddings
 from langchain.tools.retriever import create_retriever_tool
-
+from dotenv import load_dotenv
+load_dotenv()
 # 初始化嵌入函数
-embeddings = OpenAIEmbeddings(api_key="a89a3ffd346549eeb6a2914d8bcba924.vGehkWyAxdym9sHz", base_url="https://open.bigmodel.cn/api/paas/v4", model="embedding-3")
+embeddings = DashScopeEmbeddings(model="text-embedding-v3")
 # 指定存储路径
 persist_directory = "./my_vector_db"
 
@@ -15,10 +17,10 @@ retriever = vectorstore.as_retriever()
 retriever_tool = create_retriever_tool(
     retriever,
     "Exam-Board-FAQ",
-    "Search for and obtain detailed information about the registration, exam content, scoring, and admission of the autumn and spring college entrance examinations in local documents.",
+    "在文件中查询关于上海市高考学考、春考、秋考的相关信息。",
 )
 
-# # 模拟查询
-# query = "秋考考什么？"
-# result = retriever_tool.run(query)
-# print(f"查询结果：{result}")
+# 模拟查询
+query = "秋考考什么？"
+result = retriever_tool.run(query)
+print(f"查询结果：{result}")

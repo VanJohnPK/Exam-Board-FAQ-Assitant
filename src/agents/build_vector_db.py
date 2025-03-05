@@ -1,9 +1,12 @@
 from langchain_community.document_loaders import TextLoader
 from langchain_community.vectorstores import Chroma
-from langchain_openai import OpenAIEmbeddings
+# from langchain_openai import OpenAIEmbeddings
 # from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema import Document
+from langchain_community.embeddings import DashScopeEmbeddings
 import re
+from dotenv import load_dotenv
+load_dotenv()
 
 # 本地文件路径列表，你需要将这些路径替换为你实际的文件路径
 file_paths = [
@@ -38,7 +41,7 @@ for pair in qa_pairs:
 # doc_splits = text_splitter.split_documents(docs)
 doc_splits = docs  # 不进行额外分割，直接使用完整问答对
 # 初始化向量数据库
-embeddings = OpenAIEmbeddings(api_key="a89a3ffd346549eeb6a2914d8bcba924.vGehkWyAxdym9sHz", base_url="https://open.bigmodel.cn/api/paas/v4", model="embedding-3")
+embeddings = DashScopeEmbeddings(model="text-embedding-v3")
 # 指定存储路径
 persist_directory = "./my_vector_db"
 vectorstore = Chroma(collection_name="rag-chroma", embedding_function=embeddings, persist_directory=persist_directory)

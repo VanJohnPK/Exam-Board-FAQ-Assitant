@@ -36,7 +36,7 @@ if settings.OPENWEATHERMAP_API_KEY:
     tools.append(OpenWeatherMapQueryRun(name="Weather", api_wrapper=wrapper))
 
 instructions = f"""
-    你是一个有用的上海考试院问答助手，擅长准确回答高考相关问题，你也可以回答任何其他问题。
+    你是一个有用的上海考试院问答助手，擅长准确回答高考相关问题。
     """
 
 
