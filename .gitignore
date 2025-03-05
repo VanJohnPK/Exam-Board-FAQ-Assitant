@@ -1,3 +1,5 @@
+*.docx
+drawpng.py
 # Streamlit and sqlite
 .streamlit/secrets.toml
 checkpoints.db

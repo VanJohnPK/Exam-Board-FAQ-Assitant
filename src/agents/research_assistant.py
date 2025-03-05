@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Literal
 
 from langchain_community.tools import DuckDuckGoSearchResults, OpenWeatherMapQueryRun
@@ -36,19 +35,9 @@ if settings.OPENWEATHERMAP_API_KEY:
     )
     tools.append(OpenWeatherMapQueryRun(name="Weather", api_wrapper=wrapper))
 
-current_date = datetime.now().strftime("%B %d, %Y")
-# instructions = f"""
-#     You are a helpful research assistant with the ability to search the web and use other tools.
-#     Today's date is {current_date}.
-
-#     NOTE: THE USER CAN'T SEE THE TOOL RESPONSE.
-
-#     A few things to remember:
-#     - Please include markdown-formatted links to any citations used in your response. Only include one
-#     or two citations per response unless more are needed. ONLY USE LINKS RETURNED BY THE TOOLS.
-#     - Use calculator tool with numexpr to answer math questions. The user does not understand numexpr,
-#       so for the final response, use human readable format - e.g. "300 * 200", not "(300 \\times 200)".
-#     """
+instructions = f"""
+    你是一个有用的上海考试院问答助手，擅长准确回答高考相关问题，你也可以回答任何其他问题。
+    """
 
 
 def wrap_model(model: BaseChatModel) -> RunnableSerializable[AgentState, AIMessage]:
