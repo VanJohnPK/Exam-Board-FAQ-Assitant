@@ -231,24 +231,24 @@ async def stream(user_input: StreamInput, agent_id: str = DEFAULT_AGENT) -> Stre
     )
 
 
-@router.post("/feedback")
-async def feedback(feedback: Feedback) -> FeedbackResponse:
-    """
-    Record feedback for a run to LangSmith.
+# @router.post("/feedback")
+# async def feedback(feedback: Feedback) -> FeedbackResponse:
+#     """
+#     Record feedback for a run to LangSmith.
 
-    This is a simple wrapper for the LangSmith create_feedback API, so the
-    credentials can be stored and managed in the service rather than the client.
-    See: https://api.smith.langchain.com/redoc#tag/feedback/operation/create_feedback_api_v1_feedback_post
-    """
-    client = LangsmithClient()
-    kwargs = feedback.kwargs or {}
-    client.create_feedback(
-        run_id=feedback.run_id,
-        key=feedback.key,
-        score=feedback.score,
-        **kwargs,
-    )
-    return FeedbackResponse()
+#     This is a simple wrapper for the LangSmith create_feedback API, so the
+#     credentials can be stored and managed in the service rather than the client.
+#     See: https://api.smith.langchain.com/redoc#tag/feedback/operation/create_feedback_api_v1_feedback_post
+#     """
+#     client = LangsmithClient()
+#     kwargs = feedback.kwargs or {}
+#     client.create_feedback(
+#         run_id=feedback.run_id,
+#         key=feedback.key,
+#         score=feedback.score,
+#         **kwargs,
+#     )
+#     return FeedbackResponse()
 
 
 @router.post("/history")

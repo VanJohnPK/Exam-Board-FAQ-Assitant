@@ -20,7 +20,7 @@ retriever_tool = create_retriever_tool(
     "在文件中查询关于上海市高考学考、春考、秋考的相关信息。",
 )
 
-# 模拟查询
-query = "秋考考什么？"
-result = retriever_tool.run(query)
-print(f"查询结果：{result}")
+# # 模拟查询
+# query = "秋考考什么？"
+# result = retriever_tool.run(query)
+# print(f"查询结果：{result}")

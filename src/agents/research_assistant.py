@@ -1,20 +1,17 @@
-from typing import Literal
-
-from langchain_community.tools import DuckDuckGoSearchResults, OpenWeatherMapQueryRun
-from langchain_community.utilities import OpenWeatherMapAPIWrapper
+from typing import Literal, Optional
 from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.messages import AIMessage, SystemMessage
+from langchain_core.messages import AIMessage, SystemMessage, HumanMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSerializable
 from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import END, MessagesState, StateGraph
+from langgraph.graph import END, MessagesState, StateGraph, START
 from langgraph.managed import RemainingSteps
-from langgraph.prebuilt import ToolNode
-
+from langgraph.prebuilt import ToolNode, tools_condition
 # from agents.tools import calculator
 from agents.rag_tool import retriever_tool
 from core import get_model, settings
-
-
+from pydantic import BaseModel, Field
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
 class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
 
@@ -24,39 +21,33 @@ class AgentState(MessagesState, total=False):
     remaining_steps: RemainingSteps
 
 
-web_search = DuckDuckGoSearchResults(name="WebSearch")
-# tools = [web_search, retriever_tool]
 tools = [retriever_tool]
-# Add weather tool if API key is set
-# Register for an API key at https://openweathermap.org/api/
-if settings.OPENWEATHERMAP_API_KEY:
-    wrapper = OpenWeatherMapAPIWrapper(
-        openweathermap_api_key=settings.OPENWEATHERMAP_API_KEY.get_secret_value()
-    )
-    tools.append(OpenWeatherMapQueryRun(name="Weather", api_wrapper=wrapper))
 
 instructions = f"""
     你是一个有用的上海考试院问答助手，擅长准确回答高考相关问题。当你觉得查询的结果和用户问题不太匹配时，你可以向用户追问以明确问题。
     """
 
 
-def wrap_model(model: BaseChatModel) -> RunnableSerializable[AgentState, AIMessage]:
-    model = model.bind_tools(tools)
-    preprocessor = RunnableLambda(
-        # lambda state: [SystemMessage(content=instructions)] + state["messages"],
-        lambda state: state["messages"],
-        name="StateModifier",
-    )
+def wrap_model(model: BaseChatModel, tools: Optional[list] = None, instructions: Optional[str] = None) -> RunnableSerializable[AgentState, AIMessage]:
+    # 如果传入了 tools 参数，则将工具绑定到模型上
+    if tools is not None:
+        model = model.bind_tools(tools)
+    # 如果传入了 instructions 参数，则创建预处理器
+    if instructions is not None:
+        preprocessor = RunnableLambda(lambda state: [SystemMessage(content=instructions)] + state["messages"],)
+    else:
+        preprocessor = RunnableLambda(lambda state: state["messages"])
+    # 如果没有传入 instructions 参数，则直接返回模型
     return preprocessor | model
 
-
-async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
+async def agent(state: AgentState, config: RunnableConfig) -> AgentState:
+    print("---CALL AGENT---")
+    print(state["messages"][-1],"\n")
     m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
-    model_runnable = wrap_model(m)
+    model_runnable = wrap_model(m, tools)
     response = await model_runnable.ainvoke(state, config)
-
     if state["remaining_steps"] < 2 and response.tool_calls:
-        return {
+        return {    
             "messages": [
                 AIMessage(
                     id=response.id,
@@ -67,27 +58,143 @@ async def acall_model(state: AgentState, config: RunnableConfig) -> AgentState:
     # We return a list, because this will get added to the existing list
     return {"messages": [response]}
 
+async def rewrite(state: AgentState, config: RunnableConfig) -> AgentState:
+    print("---REWRITE QUERY---")
+    # 获取最后一个 HumanMessage 的内容
+    messages = state["messages"]
+    last_human_message = next((msg for msg in reversed(messages) if isinstance(msg, HumanMessage)), None)
+    if last_human_message is None:
+        raise ValueError("No HumanMessage found in the state messages.")
+    question = last_human_message.content
+
+    msg = [
+        HumanMessage(
+            content=f""" \n 
+                Look at the input and try to reason about the underlying semantic intent / meaning. \n 
+                Here is the initial question:
+                \n ------- \n
+                {question} 
+                \n ------- \n
+                Formulate an improved question: """,
+        )
+    ]
+    m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
+    # Grader
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
+    response = model.invoke(msg)
+    print("---FINISH REWRITE---")
+    return {"messages": [response]}
+
+async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
+    print("---GENERATE---")
+    # 获取最后一个 HumanMessage 的内容
+    messages = state["messages"]
+    last_human_message = next((msg for msg in reversed(messages) if isinstance(msg, HumanMessage)), None)
+    if last_human_message is None:
+        raise ValueError("No HumanMessage found in the state messages.")
+    question = last_human_message.content
+    last_message = state["messages"][-1]
+
+    docs = last_message.content
+
+    # Prompt
+    prompt = PromptTemplate(
+        template="""You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\n
+        Question: \n\n {question} \n\n
+        Context: {context} \n
+        Answer:""",
+        input_variables=["context", "question"],
+    )
+
+    # LLM
+    llm = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
+
+
+    # Chain
+    rag_chain = prompt | llm
+
+    # Run
+    response = rag_chain.invoke({"context": docs, "question": question})
+    print("---FINISH GENERATE---")
+    return {"messages": [response]}
+
+async def grade_documents(state: AgentState, config: RunnableConfig) -> Literal["generate", "rewrite"]:
+    print("---CHECK RELEVANCE---")
+    # Data model
+    class grade(BaseModel):
+        """Binary score for relevance check."""
+
+        binary_score: str = Field(description="Relevance score 'yes' or 'no'")
+
+     # LLM
+    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
+
+    # LLM with tool and validation
+    llm_with_tool = model.with_structured_output(grade)
+
+    # Prompt
+    prompt = PromptTemplate(
+        template="""You are a grader assessing relevance of a retrieved document to a user question. \n 
+        Here is the retrieved document: \n\n {context} \n\n
+        Here is the user question: {question} \n
+        If the document contains keyword(s) or semantic meaning related to the user question, grade it as relevant. \n
+        Give a binary score 'yes' or 'no' score to indicate whether the document is relevant to the question.""",
+        input_variables=["context", "question"],
+    )
+
+    # Chain
+    chain = prompt | llm_with_tool
+
+    messages = state["messages"]
+    last_message = messages[-1]
+
+    question = messages[0].content
+    docs = last_message.content
+
+    scored_result = chain.invoke({"question": question, "context": docs})
+
+    score = scored_result.binary_score
+
+    if score == "yes":
+        print("---DECISION: RELEVANT -> generate---")
+        return "generate"
+
+    else:
+        print("---DECISION: IRRELEVANT -> rewrite---")
+        print(score)
+        return "rewrite"
+
+
 
 # Define the graph
-agent = StateGraph(AgentState)
-agent.add_node("model", acall_model)
-agent.add_node("tools", ToolNode(tools))
-agent.set_entry_point("model")
+workflow = StateGraph(AgentState)
+workflow.add_node("agent", agent)
+retrieve = ToolNode(tools)
+workflow.add_node("retrieve", retrieve)  # retrieval
+workflow.add_node("rewrite", rewrite)  # Re-writing the question
+workflow.add_node("generate", generate)  # Generating a response after we know the documents are relevant
+# Call agent node to decide to retrieve or not
+workflow.add_edge(START, "agent")
 
-# Always run "model" after "tools"
-agent.add_edge("tools", "model")
+# Decide whether to retrieve
+workflow.add_conditional_edges(
+    "agent",
+    # Assess agent decision
+    tools_condition,
+    {
+        # Translate the condition outputs to nodes in our graph
+        "tools": "retrieve",
+        END: END,
+    },
+)
 
+# Edges taken after the `action` node is called.
+workflow.add_conditional_edges(
+    "retrieve",
+    # Assess agent decision
+    grade_documents,
+)
+workflow.add_edge("generate", END)
+workflow.add_edge("rewrite", "agent")
 
-# After "model", if there are tool calls, run "tools". Otherwise END.
-def pending_tool_calls(state: AgentState) -> Literal["tools", "done"]:
-    last_message = state["messages"][-1]
-    if not isinstance(last_message, AIMessage):
-        raise TypeError(f"Expected AIMessage, got {type(last_message)}")
-    if last_message.tool_calls:
-        return "tools"
-    return "done"
-
-
-agent.add_conditional_edges("model", pending_tool_calls, {"tools": "tools", "done": END})
-
-research_assistant = agent.compile(checkpointer=MemorySaver())
+research_assistant = workflow.compile(checkpointer=MemorySaver())
