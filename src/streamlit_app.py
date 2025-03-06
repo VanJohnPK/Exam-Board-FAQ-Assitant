@@ -24,7 +24,7 @@ from schema.task_data import TaskData, TaskDataStatus
 
 
 APP_TITLE = "Agent Service Toolkit"
-APP_ICON = "🧰"
+APP_ICON = "🐹"
 
 
 async def main() -> None:
@@ -35,17 +35,17 @@ async def main() -> None:
     )
 
     # Hide the streamlit upper-right chrome
-    st.html(
-        """
-        <style>
-        [data-testid="stStatusWidget"] {
-                visibility: hidden;
-                height: 0%;
-                position: fixed;
-            }
-        </style>
-        """,
-    )
+    # st.html(
+    #     """
+    #     <style>
+    #     [data-testid="stStatusWidget"] {
+    #             visibility: hidden;
+    #             height: 0%;
+    #             position: fixed;
+    #         }
+    #     </style>
+    #     """,
+    # )
     if st.get_option("client.toolbarMode") != "minimal":
         st.set_option("client.toolbarMode", "minimal")
         await asyncio.sleep(0.1)

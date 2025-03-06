@@ -24,7 +24,7 @@ class AgentState(MessagesState, total=False):
 tools = [retriever_tool]
 
 instructions = f"""
-    你是一个有用的上海考试院问答助手，擅长准确回答高考相关问题。当你觉得查询的结果和用户问题不太匹配时，你可以向用户追问以明确问题。
+    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考相关问题。
     """
 
 
@@ -42,20 +42,16 @@ def wrap_model(model: BaseChatModel, tools: Optional[list] = None, instructions:
 
 async def agent(state: AgentState, config: RunnableConfig) -> AgentState:
     print("---CALL AGENT---")
-    print(state["messages"][-1],"\n")
+    print(state["messages"][-1])
+    print(state["remaining_steps"])
     m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
-    model_runnable = wrap_model(m, tools)
+    model_runnable = wrap_model(m, tools, instructions)
+    if state["remaining_steps"] < 15:
+        model_runnable = wrap_model(m, tools=None, instructions=instructions)
     response = await model_runnable.ainvoke(state, config)
-    if state["remaining_steps"] < 2 and response.tool_calls:
-        return {    
-            "messages": [
-                AIMessage(
-                    id=response.id,
-                    content="Sorry, need more steps to process this request.",
-                )
-            ]
-        }
+
     # We return a list, because this will get added to the existing list
+    print("---AGENT FINISH---")
     return {"messages": [response]}
 
 async def rewrite(state: AgentState, config: RunnableConfig) -> AgentState:
@@ -70,12 +66,12 @@ async def rewrite(state: AgentState, config: RunnableConfig) -> AgentState:
     msg = [
         HumanMessage(
             content=f""" \n 
-                Look at the input and try to reason about the underlying semantic intent / meaning. \n 
-                Here is the initial question:
+                观察输入内容，并尝试推断其潜在的语义意图或含义。 \n
+                以下是最初的问题：
                 \n ------- \n
                 {question} 
                 \n ------- \n
-                Formulate an improved question: """,
+                构思一个更完善的问题：""",
         )
     ]
     m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
@@ -99,7 +95,7 @@ async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
 
     # Prompt
     prompt = PromptTemplate(
-        template="""You are an assistant for question-answering tasks. Use the following pieces of retrieved context to answer the question. If you don't know the answer, just say that you don't know. Use three sentences maximum and keep the answer concise.\n
+        template="""你是一个用于问答任务的助手。使用以下检索到的上下文片段来回答问题。如果你不知道答案，就直接说不知道。最多使用三个句子，并且回答要简洁。\n
         Question: \n\n {question} \n\n
         Context: {context} \n
         Answer:""",
