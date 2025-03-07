@@ -40,7 +40,7 @@ def wrap_model(model: BaseChatModel, tools: Optional[list] = None, instructions:
 
 async def agent(state: AgentState, config: RunnableConfig) -> AgentState:
     print("---CALL AGENT---")
-    print(state["messages"][-1])
+    # print(state["messages"][-1])
     print(state["remaining_steps"])
     m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     model_runnable = wrap_model(m, tools, instructions)
@@ -69,13 +69,13 @@ async def rewrite(state: AgentState, config: RunnableConfig) -> AgentState:
                 \n ------- \n
                 {question} 
                 \n ------- \n
-                构思一个更完善的问题：""",
+                构思一个更清晰明确的问题：""",
         )
     ]
-    m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     # Grader
     model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     response = model.invoke(msg)
+    print(f"rewrite message: {response}")
     print("---FINISH REWRITE---")
     return {"messages": [response]}
 
@@ -93,7 +93,7 @@ async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
 
     # Prompt
     prompt = PromptTemplate(
-        template="""你是一个用于问答任务的助手。使用以下检索到的上下文片段来回答问题。如果你不知道答案，就直接说不知道。最多使用三个句子，并且回答要简洁。\n
+        template="""你是一个用于问答任务的助手。使用以下检索到的上下文片段来回答问题。如果你不知道答案，就直接说不知道。最多使用三个句子，并且回答内容以Context为主。\n
         Question: \n\n {question} \n\n
         Context: {context} \n
         Answer:""",
