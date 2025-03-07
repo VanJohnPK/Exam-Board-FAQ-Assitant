@@ -7,10 +7,9 @@ from langgraph.graph import END, MessagesState, StateGraph, START
 from langgraph.managed import RemainingSteps
 from langgraph.prebuilt import ToolNode, tools_condition
 # from agents.tools import calculator
-from agents.rag_tool import retriever_tool
+from agents.rag_tool import retriever_tools
 from core import get_model, settings
 from pydantic import BaseModel, Field
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import PromptTemplate
 class AgentState(MessagesState, total=False):
     """`total=False` is PEP589 specs.
@@ -21,10 +20,9 @@ class AgentState(MessagesState, total=False):
     remaining_steps: RemainingSteps
 
 
-tools = [retriever_tool]
-
+tools = retriever_tools
 instructions = f"""
-    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考相关问题。
+    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题。
     """
 
 
