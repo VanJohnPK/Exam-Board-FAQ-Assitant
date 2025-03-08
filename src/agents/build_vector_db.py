@@ -24,7 +24,7 @@ for index, file_path in enumerate(file_paths):
     all_text = loader.load()[0].page_content
 
     # 使用正则表达式按行首数字加. 分割文本
-    pattern = re.compile(r'^\d+\.', re.MULTILINE)
+    pattern = re.compile(r'^\d+\.\s', re.MULTILINE)
     split_indices = [m.start() for m in pattern.finditer(all_text)]
     qa_pairs = []
     for i in range(len(split_indices)):
@@ -35,7 +35,7 @@ for index, file_path in enumerate(file_paths):
     docs = []
     for pair in qa_pairs:
         # 去掉开头的数字和.
-        clean_pair = re.sub(r'^\d+\.\s*', '', pair)
+        clean_pair = re.sub(r'^\d+\.\s', '', pair)
         doc = Document(page_content=clean_pair)
         docs.append(doc)
 
