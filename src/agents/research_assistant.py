@@ -7,7 +7,7 @@ from langgraph.graph import END, MessagesState, StateGraph, START
 from langgraph.managed import RemainingSteps
 from langgraph.prebuilt import ToolNode, tools_condition
 # from agents.tools import calculator
-from agents.rag_tool import retriever_tools
+from agents.rag_tool import retriever_tool
 from core import get_model, settings
 from pydantic import BaseModel, Field
 from langchain_core.prompts import PromptTemplate
@@ -20,7 +20,7 @@ class AgentState(MessagesState, total=False):
     remaining_steps: RemainingSteps
 
 
-tools = retriever_tools
+tools = [retriever_tool]
 instructions = f"""
     你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题，尽量不回答不相关问题。
     """
@@ -44,8 +44,8 @@ async def agent(state: AgentState, config: RunnableConfig) -> AgentState:
     print(state["remaining_steps"])
     m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
     model_runnable = wrap_model(m, tools, instructions)
-    if state["remaining_steps"] < 15:
-        model_runnable = wrap_model(m, tools=None, instructions=instructions)
+    # if state["remaining_steps"] < 20:
+    #     model_runnable = wrap_model(m, tools=None, instructions=instructions)
     response = await model_runnable.ainvoke(state, config)
 
     # We return a list, because this will get added to the existing list
@@ -61,10 +61,13 @@ async def rewrite(state: AgentState, config: RunnableConfig) -> AgentState:
         raise ValueError("No HumanMessage found in the state messages.")
     question = last_human_message.content
 
+    # 输出模板
+    output_template = """搜索结果和问题无关，以下是对问题的重写：{rewritten_question}"""
+
     msg = [
         HumanMessage(
             content=f""" \n 
-                观察输入内容，并尝试推断其潜在的语义意图或含义。 \n
+                观察输入内容，并尝试推断其潜在的语义意图或含义，问题应该和高考学考、中考中招、研考成考、自学考试和证书考试相关。 \n
                 以下是最初的问题：
                 \n ------- \n
                 {question} 
@@ -74,10 +77,12 @@ async def rewrite(state: AgentState, config: RunnableConfig) -> AgentState:
     ]
     # Grader
     model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
-    response = model.invoke(msg)
-    print(f"rewrite message: {response}")
+    response = await model.ainvoke(msg)
+    rewritten_question = response.content
+    formatted_response = output_template.format(rewritten_question=rewritten_question)
+    print(f"rewrite message: {formatted_response}")
     print("---FINISH REWRITE---")
-    return {"messages": [response]}
+    return {"messages": [AIMessage(content=formatted_response)]}
 
 async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
     print("---GENERATE---")
@@ -108,7 +113,7 @@ async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
     rag_chain = prompt | llm
 
     # Run
-    response = rag_chain.invoke({"context": docs, "question": question})
+    response = await rag_chain.ainvoke({"context": docs, "question": question})
     print("---FINISH GENERATE---")
     return {"messages": [response]}
 
@@ -145,11 +150,11 @@ async def grade_documents(state: AgentState, config: RunnableConfig) -> Literal[
     question = messages[0].content
     docs = last_message.content
 
-    scored_result = chain.invoke({"question": question, "context": docs})
+    scored_result = await chain.ainvoke({"question": question, "context": docs})
 
     score = scored_result.binary_score
-
-    if score == "yes":
+    print("before grade", state["remaining_steps"])
+    if score == "yes" or state["remaining_steps"] <= 20:
         print("---DECISION: RELEVANT -> generate---")
         return "generate"
 
