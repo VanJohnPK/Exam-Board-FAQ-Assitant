@@ -1,6 +1,6 @@
 *.docx
 drawpng.py
-my_vector_db*/
+vector_db/
 # Streamlit and sqlite
 .streamlit/secrets.toml
 checkpoints.db
