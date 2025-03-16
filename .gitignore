@@ -1,6 +1,8 @@
 *.docx
 drawpng.py
 my_vector_db*/
+nohup.out
+
 # Streamlit and sqlite
 .streamlit/secrets.toml
 checkpoints.db
