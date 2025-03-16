@@ -22,7 +22,7 @@ class AgentState(MessagesState, total=False):
 
 tools = retriever_tools
 instructions = f"""
-    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题。
+    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题，尽量不回答不相关问题。
     """
 
 
@@ -93,7 +93,7 @@ async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
 
     # Prompt
     prompt = PromptTemplate(
-        template="""你是一个用于问答任务的助手。使用以下检索到的上下文片段来回答问题。如果你不知道答案，就直接说不知道。最多使用三个句子，并且回答内容以Context为主。\n
+        template="""你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题。使用以下检索到的上下文片段来回答问题。如果你不知道答案，就直接说不知道。最多使用三个句子，并且回答内容以Context为主。\n
         Question: \n\n {question} \n\n
         Context: {context} \n
         Answer:""",
