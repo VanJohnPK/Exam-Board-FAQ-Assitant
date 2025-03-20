@@ -141,7 +141,8 @@ async def main() -> None:
     messages: list[ChatMessage] = st.session_state.messages
 
     if len(messages) == 0:
-        WELCOME = "你好，我是上海考试院小助手，擅长解答高考学考、中考中招、研考成考、自学考试和证书考试相关的问题。"
+        WELCOME = "你好，我是上海考试院小助手，擅长解答高考学考和中考中招相关的问题。"
+        # WELCOME = "你好，我是上海考试院小助手，擅长解答高考学考、中考中招、研考成考、自学考试和证书考试相关的问题。"
         with st.chat_message("ai"):
             st.write(WELCOME)
 
