@@ -22,8 +22,11 @@ class AgentState(MessagesState, total=False):
 
 tools = [retriever_tool]
 instructions = f"""
-    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题，尽量不回答不相关问题。
+    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招相关问题，尽量不回答不相关问题。
     """
+# instructions = f"""
+#     你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题，尽量不回答不相关问题。
+#     """
 
 
 def wrap_model(model: BaseChatModel, tools: Optional[list] = None, instructions: Optional[str] = None) -> RunnableSerializable[AgentState, AIMessage]:
@@ -145,10 +148,10 @@ async def grade_documents(state: AgentState, config: RunnableConfig) -> Literal[
     chain = prompt | llm_with_tool
 
     messages = state["messages"]
-    last_message = messages[-1]
+    last_human_message = next((msg for msg in reversed(messages) if isinstance(msg, HumanMessage)), None)
 
     question = messages[0].content
-    docs = last_message.content
+    docs = last_human_message.content
 
     scored_result = await chain.ainvoke({"question": question, "context": docs})
 

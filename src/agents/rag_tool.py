@@ -12,7 +12,6 @@ class RetrieverInput(BaseModel):
     """Input to the retriever."""
     query: str = Field(description="query to look up in retriever")
 
-
 # 假设 vector_db 已经存在，直接加载
 vectorstore = Chroma(
     collection_name="rag-chroma",
@@ -33,7 +32,7 @@ keyword_mapping = {
     "六级": "证书考试",
 }
 
-def search_with_dynamic_filter(query, search_key="部分", k=3):
+def search_with_dynamic_filter(query, search_key="部分", k=4):
     # 提取关键词
     relevant_keywords = [keyword for keyword in keyword_mapping if keyword in query]
 
@@ -64,6 +63,6 @@ retriever_tool = Tool(
     name="Exam-Board-FAQ",
     func=search_with_dynamic_filter,
     description="在文件中查询高考学考、中考中招、研考成考、自学考试和证书考试相关问题回答。",
-    args_schema=RetrieverInput,
+    args_schema=RetrieverInput, 
     response_format="content_and_artifact"
 )
