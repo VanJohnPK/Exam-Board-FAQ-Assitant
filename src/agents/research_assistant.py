@@ -22,7 +22,10 @@ class AgentState(MessagesState, total=False):
 
 tools = [gaokao_tool, zhongkao_tool]
 instructions = f"""
-    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考（含秋考、春考、艺术类统一考试、体育类统一考试、三校生高考、专科自主招生、高中学业水平考试、中职校学业水平考试、专升本考试、普通高校联合招收华侨港澳台考试）、中考中招相关问题，尽量不回答不相关问题。如果问题不相关，你可以向用户确认问题类型。
+    你是一个有用的上海考试院问答助手，擅长通过检索工具准确回答高考学考（含秋考、春考、艺术类统一考试、体育类统一考试、三校生高考、专科自主招生、高中学业水平考试、中职校学业水平考试、专升本考试、普通高校联合招收华侨港澳台考试）、中考中招相关问题，尽量不回答不相关问题。
+    """
+classify_instructions = f"""
+    你是一个有用的上海考试院分类助手，只对用户的问题进行分类并提取关键词。这是你的分类范围：高考学考（含秋考、春考、艺术类统一考试、体育类统一考试、三校生高考、专科自主招生、高中学业水平考试、中职校学业水平考试、专升本考试、普通高校联合招收华侨港澳台考试）、中考中招。如果不太确定，你可以向用户确认问题类型。
     """
 # instructions = f"""
 #     你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题，尽量不回答不相关问题。
@@ -40,6 +43,32 @@ def wrap_model(model: BaseChatModel, tools: Optional[list] = None, instructions:
         preprocessor = RunnableLambda(lambda state: state["messages"])
     # 如果没有传入 instructions 参数，则直接返回模型
     return preprocessor | model
+
+async def classify(state: AgentState, config: RunnableConfig) -> AgentState:
+    print("---CLASSIFY---")
+    # print(state["messages"][-1])
+    m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
+    model_runnable = wrap_model(m, None, classify_instructions)
+    # if state["remaining_steps"] < 20:
+    #     model_runnable = wrap_model(m, tools=None, instructions=instructions)
+    response = await model_runnable.ainvoke(state, config)
+
+    # We return a list, because this will get added to the existing list
+    return {"messages": [response]}
+
+async def agent(state: AgentState, config: RunnableConfig) -> AgentState:
+    print("---CALL AGENT---")
+    # print(state["messages"][-1])
+    print(state["remaining_steps"])
+    m = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
+    model_runnable = wrap_model(m, tools, instructions)
+    # if state["remaining_steps"] < 20:
+    #     model_runnable = wrap_model(m, tools=None, instructions=instructions)
+    response = await model_runnable.ainvoke(state, config)
+
+    # We return a list, because this will get added to the existing list
+    print("---AGENT FINISH---")
+    return {"messages": [response]}
 
 async def agent(state: AgentState, config: RunnableConfig) -> AgentState:
     print("---CALL AGENT---")
@@ -91,7 +120,7 @@ async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
     print("---GENERATE---")
 
     # Prompt
-    prompt = f"你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招相关问题。使用检索到的上下文片段来回答问题。如果你实在不清楚答案，就回答请联系人工客服。"
+    prompt = f"你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招相关问题。使用检索到的上下文片段来回答问题。如果你实在不清楚答案，就回答请联系客服。"
 
     # LLM
     llm = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
@@ -140,7 +169,7 @@ async def grade_documents(state: AgentState, config: RunnableConfig) -> Literal[
 
     score = scored_result.binary_score
     print("before grade", state["remaining_steps"])
-    if score == "yes" or state["remaining_steps"] <= 20:
+    if score == "yes" or state["remaining_steps"] < 20:
         print("---DECISION: RELEVANT -> generate---")
         return "generate"
 
@@ -150,16 +179,18 @@ async def grade_documents(state: AgentState, config: RunnableConfig) -> Literal[
         return "rewrite"
 
 
-
 # Define the graph
 workflow = StateGraph(AgentState)
+workflow.add_node("classify", classify)
 workflow.add_node("agent", agent)
 retrieve = ToolNode(tools)
 workflow.add_node("retrieve", retrieve)  # retrieval
 workflow.add_node("rewrite", rewrite)  # Re-writing the question
 workflow.add_node("generate", generate)  # Generating a response after we know the documents are relevant
 # Call agent node to decide to retrieve or not
-workflow.add_edge(START, "agent")
+# workflow.add_edge(START, "agent")
+workflow.add_edge(START, "classify")
+workflow.add_edge("classify", "agent")
 
 # Decide whether to retrieve
 workflow.add_conditional_edges(
