@@ -22,7 +22,7 @@ class AgentState(MessagesState, total=False):
 
 tools = [gaokao_tool, zhongkao_tool]
 instructions = f"""
-    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招相关问题，尽量不回答不相关问题。
+    你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考（含秋考、春考、艺术类统一考试、体育类统一考试、三校生高考、专科自主招生、高中学业水平考试、中职校学业水平考试、专升本考试、普通高校联合招收华侨港澳台考试）、中考中招相关问题，尽量不回答不相关问题。如果问题不相关，你可以向用户确认问题类型。
     """
 # instructions = f"""
 #     你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题，尽量不回答不相关问题。
@@ -40,33 +40,6 @@ def wrap_model(model: BaseChatModel, tools: Optional[list] = None, instructions:
         preprocessor = RunnableLambda(lambda state: state["messages"])
     # 如果没有传入 instructions 参数，则直接返回模型
     return preprocessor | model
-
-async def classify(state: AgentState, config: RunnableConfig) -> AgentState:
-    print("---CLASSIFY QUESTION---")
-    prompt = f"""
-    你需要帮我将问题归入给定的类别之一，判断最相关的一项。
-    """
-    preprocessor = RunnableLambda(lambda state: [SystemMessage(content=prompt)] + state["messages"],)
-
-    # 输出模板
-    output_template = """您的问题关于{question_class}，如有错误请指出。"""
-
-    # Data model
-    class Class(BaseModel):
-        """将问题归类到给定的类别之一"""
-
-        question_class: Literal["秋考", "春考", "艺术类统一考试", "体育类统一考试", "三校生高考","专科自主招生","高中学业水平考试","中职校学业水平考试","专升本考试","普通高校联合招收华侨港澳台考试", "中考中招", "无关问题"] = Field(description="问题的类别")
-
-     # LLM
-    model = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
-    # LLM with tool and validation
-    llm_with_tool = model.with_structured_output(Class)
-    chain = preprocessor | llm_with_tool
-    # response : Class = await chain.ainvoke({"question": question})
-    response : Class = await chain.ainvoke(state)
-    question_class = response.question_class
-    formatted_response = output_template.format(question_class=question_class)
-    return {"messages": [AIMessage(content=formatted_response)]}
 
 async def agent(state: AgentState, config: RunnableConfig) -> AgentState:
     print("---CALL AGENT---")
@@ -118,7 +91,7 @@ async def generate(state: AgentState, config: RunnableConfig) -> AgentState:
     print("---GENERATE---")
 
     # Prompt
-    prompt = f"你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招、研考成考、自学考试和证书考试相关问题。使用以下检索到的上下文片段来回答问题。如果你不知道答案，就直接说不知道。最多使用三个句子，并且回答内容以Context为主。"
+    prompt = f"你是一个有用的上海考试院问答助手，擅长通过检索准确回答高考学考、中考中招相关问题。使用检索到的上下文片段来回答问题。如果你实在不清楚答案，就回答请联系人工客服。"
 
     # LLM
     llm = get_model(config["configurable"].get("model", settings.DEFAULT_MODEL))
@@ -167,7 +140,7 @@ async def grade_documents(state: AgentState, config: RunnableConfig) -> Literal[
 
     score = scored_result.binary_score
     print("before grade", state["remaining_steps"])
-    if score == "yes" or state["remaining_steps"] < 20:
+    if score == "yes" or state["remaining_steps"] <= 20:
         print("---DECISION: RELEVANT -> generate---")
         return "generate"
 
@@ -180,15 +153,13 @@ async def grade_documents(state: AgentState, config: RunnableConfig) -> Literal[
 
 # Define the graph
 workflow = StateGraph(AgentState)
-workflow.add_node("classify", classify)
 workflow.add_node("agent", agent)
 retrieve = ToolNode(tools)
 workflow.add_node("retrieve", retrieve)  # retrieval
 workflow.add_node("rewrite", rewrite)  # Re-writing the question
 workflow.add_node("generate", generate)  # Generating a response after we know the documents are relevant
 # Call agent node to decide to retrieve or not
-workflow.add_edge(START, "classify")
-workflow.add_edge("classify", "agent")
+workflow.add_edge(START, "agent")
 
 # Decide whether to retrieve
 workflow.add_conditional_edges(
