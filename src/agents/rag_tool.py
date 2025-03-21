@@ -74,14 +74,15 @@ def search_with_dynamic_filter(query, search_key="考试类型", k=5):
         k=k,
         filter=filter_condition
     )
-    # 提取 page_content，并添加 metadata 信息
-    page_contents = []
-    for doc in results:
-        part = doc.metadata.get('部分', '')
-        exam_type = doc.metadata.get('考试类型', '')
-        question_type = doc.metadata.get('问题类型', '')
-        new_content = f"【{part}】【{exam_type}】【{question_type}】{doc.page_content}"
-        page_contents.append(new_content)
+    # # 提取 page_content，并添加 metadata 信息
+    # page_contents = []
+    # for doc in results:
+    #     part = doc.metadata.get('部分', '')
+    #     exam_type = doc.metadata.get('考试类型', '')
+    #     question_type = doc.metadata.get('问题类型', '')
+    #     new_content = f"【{part}】【{exam_type}】【{question_type}】{doc.page_content}"
+    #     page_contents.append(new_content)
+    page_contents = [doc.page_content for doc in results]
     # 处理字符串，添加换行符并去掉方括号
     content_str = '\n\n'.join(page_contents)
     # 返回一个二元组
