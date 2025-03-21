@@ -28,7 +28,15 @@ keyword_mapping = {
     "强基": ["秋考"],
     "春季高考": ["春考"],
     "艺考": ["艺术类统一考试"],
+    "艺术高考": ["艺术类统一考试"],
+    "艺术类": ["艺术类统一考试"],
+    "艺术生": ["艺术类统一考试"],
+    "体育类": ["体育类统一考试"],
     "体育生": ["体育类统一考试"],
+    "体育高考": ["体育类统一考试"],
+    "体考": ["体育类统一考试"],
+    "体育单招": ["体育类统一考试"],
+    "体育单独招生": ["体育类统一考试"],
     "三校": ["三校生高考"],
     "专科自招": ["专科自主招生"],
     "合格考": ["高中学业水平考试"],
@@ -42,7 +50,7 @@ keyword_mapping = {
 for keyword in gaokao_keywords:
     keyword_mapping[keyword] = keyword
 
-def search_with_dynamic_filter(query, search_key="考试类型", k=4):
+def search_with_dynamic_filter(query, search_key="考试类型", k=5):
     # 提取关键词
     relevant_keywords =[keyword for keyword in keyword_mapping if keyword in query]
 
@@ -82,7 +90,7 @@ def search_with_dynamic_filter(query, search_key="考试类型", k=4):
 gaokao_tool = Tool(
     name="GaoKao-FAQ",
     func=search_with_dynamic_filter,
-    description="查询高考学考相关问答。",
+    description="查询高考学考相关问答，包含秋考、春考、艺术类统一考试、体育类统一考试、三校生高考、专科自主招生、高中学业水平考试、中职校学业水平考试、专升本考试、普通高校联合招收华侨港澳台考试。",
     args_schema=RetrieverInput, 
     response_format="content_and_artifact"
 )
