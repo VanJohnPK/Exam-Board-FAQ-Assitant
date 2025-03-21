@@ -18,12 +18,9 @@ class Agent:
 
 
 agents: dict[str, Agent] = {
-    "chatbot": Agent(description="A simple chatbot.", graph=chatbot),
     "research-assistant": Agent(
         description="A research assistant with web search and calculator.", graph=research_assistant
     ),
-    "command-agent": Agent(description="A command agent.", graph=command_agent),
-    "bg-task-agent": Agent(description="A background task agent.", graph=bg_task_agent),
 }
 
 
