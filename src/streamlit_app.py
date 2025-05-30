@@ -299,7 +299,7 @@ async def draw_messages(
                                 unsafe_allow_html=True
                             )
                         st.markdown("---")
-                        st.markdown("📂 **最终答案参考：**")
+                        st.markdown("📂 **智能助手回答：**")
 
 
             case "custom":
