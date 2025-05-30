@@ -291,7 +291,7 @@ async def draw_messages(
                     if tool_outputs:
                         st.markdown("---")
                         st.markdown("📂 **相关问答参考：**")
-                        for i, (q, a) in enumerate(tool_outputs):
+                        for i, (q, a) in enumerate(tool_outputs[:2]):
                             st.markdown(
                                 f'<div style="color: gray; font-size: 0.95em;">'
                                 f'<strong>{q.strip()}</strong><br>{a.strip()}'
