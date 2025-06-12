@@ -55,7 +55,7 @@ async def main() -> None:
         load_dotenv()
         agent_url = os.getenv("AGENT_URL")
         if not agent_url:
-            host = os.getenv("HOST", "127.0.0.1")
+            host = os.getenv("HOST", "122.51.247.217")
             port = os.getenv("PORT", 8080)
             agent_url = f"http://{host}:{port}"
         try:
@@ -157,31 +157,76 @@ async def main() -> None:
     if user_input := st.chat_input():
         messages.append(ChatMessage(type="human", content=user_input))
         st.chat_message("human").write(user_input)
-        try:
-            if use_streaming:
-                stream = agent_client.astream(
-                    message=user_input,
-                    model=model,
-                    thread_id=st.session_state.thread_id,
-                )
-                await draw_messages(stream, is_new=True)
-            else:
-                response = await agent_client.ainvoke(
-                    message=user_input,
-                    model=model,
-                    thread_id=st.session_state.thread_id,
-                )
-                messages.append(response)
-                st.chat_message("ai").write(response.content)
-            st.rerun()  # Clear stale containers
-        except AgentClientError as e:
-            st.error(f"Error generating response: {e}")
-            st.stop()
 
-    # # If messages have been generated, show feedback widget
-    # if len(messages) > 0 and st.session_state.last_message:
-    #     with st.session_state.last_message:
-    #         await handle_feedback()
+        user_input_lower = user_input.lower()
+
+        # ✅ Step 1: 如果在等待用户回答“是否为上海户口”
+        if st.session_state.get("awaiting_hukou_check", False):
+            st.session_state.awaiting_hukou_check = False  # 重置等待状态
+
+            # 构造新的提示语，交给大模型判断报名资格
+            if "是" in user_input_lower or "本地" in user_input_lower or "上海" in user_input_lower:
+                exam_question = st.session_state.get("exam_question", "请回答问题")
+                hukou_msg = "考生为上海常住户口，"+ exam_question
+            elif "否" in user_input_lower or "不是" in user_input_lower or "外地" in user_input_lower:
+                exam_question = st.session_state.get("exam_question", "请回答问题")
+                hukou_msg = "考生为非本市户口，" + exam_question
+            else:
+                st.chat_message("ai").write("请问考生是否为**上海常住户口**？可以回答“是”或“否”。")
+                st.session_state.awaiting_hukou_check = True
+                st.stop()
+
+            try:
+                if use_streaming:
+                    stream = agent_client.astream(
+                        message=hukou_msg,
+                        model=model,
+                        thread_id=st.session_state.thread_id,
+                    )
+                    await draw_messages(stream, is_new=True)
+                else:
+                    response = await agent_client.ainvoke(
+                        message=hukou_msg,
+                        model=model,
+                        thread_id=st.session_state.thread_id,
+                    )
+                    messages.append(response)
+                    st.chat_message("ai").write(response.content)
+                st.session_state.pop("exam_question", None)
+                st.rerun()
+            except AgentClientError as e:
+                st.error(f"调用大模型失败：{e}")
+                st.stop()
+
+        # ✅ Step 2: 检测是否提到了“报名 + 中考/高考” → 进入判断户口状态
+        elif "报名" in user_input_lower and ("高考" in user_input_lower or "中考" in user_input_lower):
+            st.session_state.awaiting_hukou_check = True
+            st.session_state.exam_question = user_input_lower
+            st.chat_message("ai").write("请问考生本人是否为**上海常住户口**？（请直接回答 是 或 否）")
+
+
+        # ✅ Step 3: 否则就是普通问题 → 正常调用模型
+        else:
+            try:
+                if use_streaming:
+                    stream = agent_client.astream(
+                        message=user_input,
+                        model=model,
+                        thread_id=st.session_state.thread_id,
+                    )
+                    await draw_messages(stream, is_new=True)
+                else:
+                    response = await agent_client.ainvoke(
+                        message=user_input,
+                        model=model,
+                        thread_id=st.session_state.thread_id,
+                    )
+                    messages.append(response)
+                    st.chat_message("ai").write(response.content)
+                st.rerun()
+            except AgentClientError as e:
+                st.error(f"调用大模型失败：{e}")
+                st.stop()
 
 
 import re
